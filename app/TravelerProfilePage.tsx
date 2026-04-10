@@ -18,15 +18,23 @@ const initialValues: FormValues = {
 };
 
 const gallerySlides = Array.from({ length: 10 }, (_, index) => ({
-  src: "/images/gallery/placeholder-gallery.png",
-  alt: `Destination gallery placeholder ${index + 1}`,
+  src: `/images/gallery/thumb${index + 1}.png`,
+  alt: `Destination gallery ${index + 1}`,
 }));
+
+const bgImages = Array.from(
+  { length: 10 },
+  (_, index) => `/images/gallery/${index + 1}.png`
+);
 
 export default function TravelerProfilePage() {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorFields, setErrorFields] = useState<FieldKey[]>([]);
+  const [hasTcpaConsent, setHasTcpaConsent] = useState(false);
+  const [showTcpaError, setShowTcpaError] = useState(false);
+  const [activeBgIndex, setActiveBgIndex] = useState(0);
   const formPanelRef = useRef<HTMLDivElement>(null);
   const galleryTrackRef = useRef<HTMLDivElement>(null);
 
@@ -48,12 +56,64 @@ export default function TravelerProfilePage() {
       } else if (track.scrollLeft > sectionWidth * 1.5) {
         track.scrollLeft -= sectionWidth;
       }
+
+      const slideWidth = getSlideWidth();
+      const centerOffset = track.scrollLeft + track.clientWidth / 2;
+      const rawIndex = Math.round(centerOffset / slideWidth);
+      const normalized =
+        ((rawIndex % gallerySlides.length) + gallerySlides.length) %
+        gallerySlides.length;
+      setActiveBgIndex(normalized);
     };
 
     track.addEventListener("scroll", handleScroll, { passive: true });
 
+    let autoScrollTimer: ReturnType<typeof setInterval> | null = null;
+    let userScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isUserScrolling = false;
+
+    const getSlideWidth = () => {
+      const firstSlide = track.querySelector(`.${styles.heroGallerySlide}`) as HTMLElement | null;
+      if (!firstSlide) return 192;
+      return firstSlide.offsetWidth + 12;
+    };
+
+    const startAutoScroll = () => {
+      stopAutoScroll();
+      autoScrollTimer = setInterval(() => {
+        if (isUserScrolling) return;
+        track.scrollBy({ left: getSlideWidth(), behavior: "smooth" });
+      }, 5000);
+    };
+
+    const stopAutoScroll = () => {
+      if (autoScrollTimer) {
+        clearInterval(autoScrollTimer);
+        autoScrollTimer = null;
+      }
+    };
+
+    const handleUserInteraction = () => {
+      isUserScrolling = true;
+      stopAutoScroll();
+      if (userScrollTimeout) clearTimeout(userScrollTimeout);
+      userScrollTimeout = setTimeout(() => {
+        isUserScrolling = false;
+        startAutoScroll();
+      }, 5000);
+    };
+
+    track.addEventListener("pointerdown", handleUserInteraction);
+    track.addEventListener("touchstart", handleUserInteraction, { passive: true });
+
+    startAutoScroll();
+
     return () => {
       track.removeEventListener("scroll", handleScroll);
+      track.removeEventListener("pointerdown", handleUserInteraction);
+      track.removeEventListener("touchstart", handleUserInteraction);
+      stopAutoScroll();
+      if (userScrollTimeout) clearTimeout(userScrollTimeout);
     };
   }, []);
 
@@ -96,6 +156,12 @@ export default function TravelerProfilePage() {
       return;
     }
 
+    if (!hasTcpaConsent) {
+      setShowTcpaError(true);
+      window.setTimeout(() => setShowTcpaError(false), 2000);
+      return;
+    }
+
     setShowSuccess(true);
     scrollPanelToTop();
   };
@@ -103,9 +169,42 @@ export default function TravelerProfilePage() {
   const getInputClassName = (field: FieldKey) =>
     `${styles.fieldInput} ${errorFields.includes(field) ? styles.fieldInputError : ""}`;
 
+  const formatDate = (value: string) => {
+    if (!value) {
+      return "-";
+    }
+
+    const parsed = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return parsed.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   return (
     <main className={styles.page}>
       <div className={styles.pageWrapper}>
+        <div className={styles.heroBg} aria-hidden="true">
+          {bgImages.map((src, i) => (
+            <Image
+              key={src}
+              src={src}
+              alt=""
+              fill
+              sizes="100vw"
+              priority={i === 0}
+              className={`${styles.heroBgImage} ${
+                i === activeBgIndex ? styles.heroBgImageActive : ""
+              }`}
+            />
+          ))}
+        </div>
         <div className={styles.heroPanel}>
           <div className={styles.heroLogo}>
             <Image
@@ -117,11 +216,10 @@ export default function TravelerProfilePage() {
             />
           </div>
 
-          <div className={styles.heroBadge}>Pick Your Paradise</div>
-          <h1 className={styles.heroHeadline}>
-            You&apos;re In. Now Claim Your{" "}
-            <span className={styles.highlightFont}>Bonus Cruise.</span>
-          </h1>
+          <h1 className={styles.heroHeadline}>Pick Your Paradise</h1>
+          <p className={styles.heroSubheadline}>
+            You&apos;re In. Now Claim Your Bonus Cruise.
+          </p>
           <p className={styles.heroSub}>
             Complete your traveler profile below and we&apos;ll add a
             complimentary cruise certificate to your package — on us.
@@ -131,7 +229,11 @@ export default function TravelerProfilePage() {
               {[...gallerySlides, ...gallerySlides, ...gallerySlides].map(
                 (slide, index) => (
                   <div
-                    className={styles.heroGallerySlide}
+                    className={`${styles.heroGallerySlide} ${
+                      index % gallerySlides.length === activeBgIndex
+                        ? styles.heroGallerySlideActive
+                        : ""
+                    }`}
                     key={`${slide.alt}-${index}`}
                   >
                     <Image
@@ -332,12 +434,63 @@ export default function TravelerProfilePage() {
                       </div>
                     </div>
 
+                    <div
+                      className={`${styles.tcpaConsent} ${
+                        showTcpaError ? styles.tcpaConsentError : ""
+                      }`}
+                    >
+                      <label className={styles.tcpaConsentLabel} htmlFor="tcpaConsent">
+                        <input
+                          id="tcpaConsent"
+                          type="checkbox"
+                          className={styles.tcpaCheckbox}
+                          checked={hasTcpaConsent}
+                          onChange={(event) => {
+                            setHasTcpaConsent(event.target.checked);
+                            if (event.target.checked) {
+                              setShowTcpaError(false);
+                            }
+                          }}
+                        />
+                        <span className={styles.tcpaConsentCopy}>
+                          <strong>CONDITIONS:</strong> By clicking
+                          {" "}
+                          &ldquo;Accept &amp; Continue&rdquo;
+                          {" "}
+                          below, I consent and agree to the
+                          {" "}
+                          <a href="#">Terms &amp; Conditions</a>,
+                          {" "}
+                          <a href="#">Privacy Policy</a>,
+                          {" "}
+                          <a href="#">Mandatory Arbitration and Class Action Waiver</a>,
+                          {" "}
+                          all of which I have read and understand. I further give
+                          my express written consent to receive promotional emails,
+                          SMS/MMS/RCS texts and calls made from an automatic
+                          telephone dialing system (for selection or dialing) and
+                          those using prerecorded, artificial, or AI-generated
+                          voice, whether delivered by live call or text message or
+                          directly to voicemail from or on behalf of Sunstate Client
+                          Services Inc. dba VacationGurus or Club Exploria, LLC dba
+                          Exploria Resorts, Express Consent, LLC. at the
+                          address/numbers provided regardless of that number being
+                          on any Do not Call Registry. I understand text/data and
+                          other charges may apply. My consent is not a condition of
+                          any purchase. As an alternative to the consent above you
+                          may enter the Promotion
+                          {" "}
+                          <a href="#">here</a>.
+                        </span>
+                      </label>
+                    </div>
+
                     <button
                       type="button"
                       className={styles.submitBtn}
                       onClick={handleSubmit}
                     >
-                      Submit &amp; Claim My Cruise
+                      Accept &amp; Continue
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
@@ -377,37 +530,113 @@ export default function TravelerProfilePage() {
                   bonus cruise certificate.
                 </p>
 
-                <div className={styles.certCard}>
-                  <div className={styles.certEyebrow}>Bonus Certificate</div>
-                  <div className={styles.certTitle}>
-                    Complimentary Caribbean Cruise
+                <div className={styles.confirmationGrid}>
+                  <div className={styles.confirmationCard}>
+                    <div className={styles.confirmationEyebrow}>Traveler 1</div>
+                    <div className={styles.confirmationFields}>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          First Name
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t1fn || "-"}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Last Name
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t1ln || "-"}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Date of Birth
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {formatDate(values.t1dob)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.certSubtitle}>
-                    3 or 4 Nights for Two Adults
+
+                  <div className={styles.confirmationCard}>
+                    <div className={styles.confirmationEyebrow}>Traveler 2</div>
+                    <div className={styles.confirmationFields}>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          First Name
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t2fn || "-"}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Last Name
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t2ln || "-"}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Date of Birth
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {formatDate(values.t2dob)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.certDivider} />
-                  <div className={styles.certDetails}>
-                    <div className={styles.certDetailItem}>
-                      <span className={styles.certDetailLabel}>Validity</span>
-                      <span className={styles.certDetailValue}>12 Months</span>
+
+                  <div
+                    className={`${styles.confirmationCard} ${styles.confirmationCardWide}`}
+                  >
+                    <div className={styles.confirmationEyebrow}>
+                      Bonus Certificate
                     </div>
-                    <div className={styles.certDetailItem}>
-                      <span className={styles.certDetailLabel}>Guests</span>
-                      <span className={styles.certDetailValue}>2 Adults</span>
+                    <div className={styles.confirmationCardTitle}>
+                      Complimentary Caribbean Cruise
                     </div>
-                    <div className={styles.certDetailItem}>
-                      <span className={styles.certDetailLabel}>Duration</span>
-                      <span className={styles.certDetailValue}>3–4 Nights</span>
+                    <div className={styles.confirmationFields}>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Duration
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          3-4 Nights
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>Guests</span>
+                        <span className={styles.confirmationFieldValue}>
+                          2 Adults
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Destination
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          Caribbean
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Validity
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          12 Months
+                        </span>
+                      </div>
                     </div>
-                    <div className={styles.certDetailItem}>
-                      <span className={styles.certDetailLabel}>Destination</span>
-                      <span className={styles.certDetailValue}>Caribbean</span>
-                    </div>
-                  </div>
-                  <div className={styles.certRedeem}>
-                    <strong>To redeem:</strong> Call GOCRV at 954-525-1777,
-                    Mon–Fri 9:30am–5pm ET. Your certificate will also be
-                    delivered to your email and phone.
+                    <p className={styles.confirmationNote}>
+                      To redeem, call GOCRV at 954-525-1777, Mon-Fri 9:30am-5pm
+                      ET. Your certificate will also be delivered to your email
+                      and phone.
+                    </p>
                   </div>
                 </div>
 

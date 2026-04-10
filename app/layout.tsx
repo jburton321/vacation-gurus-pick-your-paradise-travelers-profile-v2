@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -15,9 +15,43 @@ const orangeLemonade = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Vacation Gurus | Pick Your Paradise",
+  metadataBase: new URL("https://vacationgurus.com"),
+  title: "Pick Your Paradise - Claim Your Bonus Cruise | Vacation Gurus",
   description:
-    "Traveler profile experience for Vacation Gurus, where your adventure begins here.",
+    "Complete your traveler profile and claim your complimentary Caribbean cruise certificate. Your paradise is waiting - Vacation Gurus.",
+  authors: [{ name: "Vacation Gurus" }],
+  robots: {
+    index: false,
+    follow: false,
+  },
+  openGraph: {
+    type: "website",
+    title: "You're In. Now Claim Your Bonus Cruise.",
+    description:
+      "Complete your traveler profile and we'll add a complimentary cruise certificate to your package - on us.",
+    siteName: "Vacation Gurus",
+    url: "https://vacationgurus.com/pick-your-paradise",
+    images: [
+      {
+        url: "https://vacationgurus.com/wp-content/uploads/Primary-Logo-Full-Color.svg",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "You're In. Now Claim Your Bonus Cruise.",
+    description:
+      "Complete your traveler profile and claim your complimentary Caribbean cruise certificate.",
+  },
+  icons: {
+    icon: "https://vacationgurus.com/wp-content/uploads/Primary-Logo-Full-Color.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

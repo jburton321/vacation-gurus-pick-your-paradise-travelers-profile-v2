@@ -6,22 +6,46 @@
 }
 
 .pageWrapper {
+  position: relative;
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(11, 29, 58, 0.15) 0%,
-      rgba(11, 29, 58, 0.55) 60%,
-      rgba(11, 29, 58, 0.92) 100%
-    ),
-    url("https://images.unsplash.com/photo-1540202404-a2f29016b523?w=1200&q=80")
-      center / cover no-repeat;
+}
+
+.pageWrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 29, 58, 0.15) 0%,
+    rgba(11, 29, 58, 0.55) 60%,
+    rgba(11, 29, 58, 0.92) 100%
+  );
+  pointer-events: none;
+}
+
+.heroBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.heroBgImage {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.heroBgImageActive {
+  opacity: 1;
 }
 
 .heroPanel {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -43,23 +67,6 @@
   width: 100%;
 }
 
-.heroBadge {
-  display: inline-block;
-  width: fit-content;
-  margin-bottom: 20px;
-  border: 1px solid rgba(47, 180, 193, 0.35);
-  border-radius: 20px;
-  background: rgba(47, 180, 193, 0.15);
-  padding: 6px 16px;
-  color: var(--vg-ocean);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-}
-
 .heroHeadline {
   margin-bottom: 16px;
   color: var(--vg-white);
@@ -67,6 +74,15 @@
   font-size: 44px;
   font-weight: 700;
   line-height: 1.15;
+}
+
+.heroSubheadline {
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .highlightFont {
@@ -117,6 +133,24 @@
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.4s ease;
+}
+
+.heroGallerySlide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  opacity: 0;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 16px rgba(47, 180, 193, 0.5);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.heroGallerySlideActive::after {
+  opacity: 1;
 }
 
 .heroGalleryImage {
@@ -372,13 +406,60 @@
   stroke-width: 2.5;
 }
 
+.tcpaConsent {
+  margin-top: 20px;
+  max-height: 80px;
+  overflow-y: auto;
+  border: 1px solid rgba(26, 138, 138, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 12px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tcpaConsentError {
+  border-color: #e07a5f;
+  box-shadow: 0 0 0 3px rgba(224, 122, 95, 0.12);
+}
+
+.tcpaConsentLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.tcpaCheckbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  accent-color: var(--vg-teal);
+}
+
+.tcpaConsentCopy {
+  color: #5a6a7a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.tcpaConsentCopy strong {
+  color: var(--vg-navy);
+}
+
+.tcpaConsentCopy a {
+  color: var(--vg-teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .reassurance {
   margin-top: 20px;
-  border-left: 3px solid var(--vg-gold);
-  border-radius: 8px;
-  background: var(--vg-white);
+  border: 1px solid rgba(26, 138, 138, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
   padding: 16px 18px;
-  color: #5a6a7a;
+  color: #6a7888;
   font-size: 12.5px;
   line-height: 1.6;
 }
@@ -432,91 +513,54 @@
   line-height: 1.5;
 }
 
-.certCard {
-  position: relative;
-  overflow: hidden;
+.confirmationGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.confirmationCard {
+  border: 1px solid rgba(26, 138, 138, 0.14);
   border-radius: 14px;
-  background: var(--vg-navy);
-  padding: 32px 28px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 20px 18px;
   text-align: left;
+  box-shadow: 0 12px 24px rgba(11, 29, 58, 0.06);
 }
 
-.certCard::before {
-  content: "";
-  position: absolute;
-  top: -40px;
-  right: -40px;
-  height: 160px;
-  width: 160px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(47, 180, 193, 0.15) 0%, transparent 70%);
+.confirmationCardWide {
+  padding-bottom: 18px;
 }
 
-.certCard::after {
-  content: "";
-  position: absolute;
-  bottom: -30px;
-  left: -20px;
-  height: 120px;
-  width: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(212, 168, 67, 0.1) 0%, transparent 70%);
-}
-
-.certEyebrow {
-  position: relative;
-  z-index: 1;
+.confirmationEyebrow {
   margin-bottom: 10px;
-  color: var(--vg-ocean);
+  color: var(--vg-teal);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
-.certTitle {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 6px;
-  color: var(--vg-white);
+.confirmationCardTitle {
+  margin-bottom: 16px;
+  color: var(--vg-navy);
   font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   font-weight: 700;
 }
 
-.certSubtitle {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 20px;
-  color: var(--vg-warm-gold);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.certDivider {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 18px;
-  height: 2px;
-  width: 40px;
-  background: linear-gradient(90deg, var(--vg-gold), var(--vg-ocean));
-}
-
-.certDetails {
-  position: relative;
-  z-index: 1;
+.confirmationFields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
-.certDetailItem {
+.confirmationFieldItem {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.certDetailLabel {
+.confirmationFieldLabel {
   color: #8a9bb0;
   font-size: 10px;
   font-weight: 600;
@@ -524,26 +568,19 @@
   text-transform: uppercase;
 }
 
-.certDetailValue {
-  color: var(--vg-white);
+.confirmationFieldValue {
+  color: var(--vg-navy);
   font-size: 14px;
   font-weight: 600;
 }
 
-.certRedeem {
-  position: relative;
-  z-index: 1;
-  margin-top: 22px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 18px;
-  color: rgba(255, 255, 255, 0.5);
+.confirmationNote {
+  margin-top: 18px;
+  border-top: 1px solid rgba(26, 138, 138, 0.12);
+  padding-top: 16px;
+  color: #6a7888;
   font-size: 12px;
   line-height: 1.6;
-}
-
-.certRedeem strong {
-  color: var(--vg-ocean);
-  font-weight: 600;
 }
 
 .successLegal {
@@ -570,7 +607,6 @@
   .pageWrapper {
     display: block;
     min-height: 100vh;
-    background: none;
   }
 
   .heroHeadline {
@@ -580,18 +616,9 @@
   .heroPanel {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     height: 60vh;
     min-height: 356px;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(11, 29, 58, 0.15) 0%,
-        rgba(11, 29, 58, 0.55) 60%,
-        rgba(11, 29, 58, 0.92) 100%
-      ),
-      url("https://images.unsplash.com/photo-1540202404-a2f29016b523?w=1200&q=80")
-        center / cover no-repeat;
     padding: 40px 28px 48px;
   }
 
