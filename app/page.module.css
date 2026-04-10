@@ -33,6 +33,14 @@
   overflow: hidden;
 }
 
+.heroBgDesktop {
+  display: block;
+}
+
+.heroBgMobile {
+  display: none;
+}
+
 .heroBgImage {
   object-fit: cover;
   opacity: 0;
@@ -604,6 +612,14 @@
 }
 
 @media (max-width: 900px) {
+  .heroBgDesktop {
+    display: none;
+  }
+
+  .heroBgMobile {
+    display: block;
+  }
+
   .pageWrapper {
     display: block;
     min-height: 100vh;

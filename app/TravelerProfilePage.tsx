@@ -27,6 +27,11 @@ const bgImages = Array.from(
   (_, index) => `/images/gallery/${index + 1}.png`
 );
 
+const bgImagesMobile = Array.from(
+  { length: 10 },
+  (_, index) => `/images/gallery/mobile${index + 1}.png`
+);
+
 export default function TravelerProfilePage() {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -190,8 +195,23 @@ export default function TravelerProfilePage() {
   return (
     <main className={styles.page}>
       <div className={styles.pageWrapper}>
-        <div className={styles.heroBg} aria-hidden="true">
+        <div className={`${styles.heroBg} ${styles.heroBgDesktop}`} aria-hidden="true">
           {bgImages.map((src, i) => (
+            <Image
+              key={src}
+              src={src}
+              alt=""
+              fill
+              sizes="100vw"
+              priority={i === 0}
+              className={`${styles.heroBgImage} ${
+                i === activeBgIndex ? styles.heroBgImageActive : ""
+              }`}
+            />
+          ))}
+        </div>
+        <div className={`${styles.heroBg} ${styles.heroBgMobile}`} aria-hidden="true">
+          {bgImagesMobile.map((src, i) => (
             <Image
               key={src}
               src={src}
