@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b1d3a;
+  --foreground: #ffffff;
+  --font-display: var(--font-body);
+  --card: #122b50;
+  --muted: #f5ecd7;
+  --vg-navy: #0b1d3a;
+  --vg-deep-blue: #122b50;
+  --vg-teal: #1a8a8a;
+  --vg-ocean: #2fb4c1;
+  --vg-gold: #d4a843;
+  --vg-warm-gold: #e8c36a;
+  --vg-sand: #f5ecd7;
+  --vg-white: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-vg-navy: var(--vg-navy);
+  --color-vg-deep-blue: var(--vg-deep-blue);
+  --color-vg-teal: var(--vg-teal);
+  --color-vg-ocean: var(--vg-ocean);
+  --color-vg-gold: var(--vg-gold);
+  --color-vg-warm-gold: var(--vg-warm-gold);
+  --color-vg-sand: var(--vg-sand);
+  --color-vg-white: var(--vg-white);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(47, 180, 193, 0.35);
+  color: var(--vg-white);
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.section-label {
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+}
+
+.hero-divider {
+  height: 1px;
+  width: 6rem;
+  background: linear-gradient(90deg, transparent, var(--vg-gold), transparent);
 }
