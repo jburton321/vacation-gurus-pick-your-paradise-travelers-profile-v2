@@ -490,11 +490,22 @@
   flex-direction: column;
 }
 
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
 .fieldLabel {
   margin-bottom: 5px;
   color: var(--vg-navy);
   font-size: 13px;
   font-weight: 600;
+}
+
+.fieldLabelRow .fieldLabel {
+  margin-bottom: 0;
 }
 
 .fieldInput {

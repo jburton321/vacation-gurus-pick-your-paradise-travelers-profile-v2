@@ -453,13 +453,13 @@ export default function TravelerProfilePage() {
                   </div>
                   <div className={styles.fieldRow}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel} htmlFor="t1dob">
-                        Date of Birth
-                        <span className={styles.tooltip}>
+                      <div className={styles.fieldLabelRow}>
+                        <label className={styles.fieldLabel} htmlFor="t1dob">Date of Birth</label>
+                        <span className={styles.tooltip} onClick={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
                           <span className={styles.tooltipIcon}>?</span>
                           <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
                         </span>
-                      </label>
+                      </div>
                       <input id="t1dob" type="date" className={getInputClassName("t1dob")} required value={values.t1dob} onChange={(e) => handleFieldChange("t1dob", e.target.value)} onBlur={() => handleBlur("t1dob")} />
                       {fieldErrors.t1dob && <span className={styles.fieldErrorMsg}>{fieldErrors.t1dob}</span>}
                     </div>
@@ -520,13 +520,13 @@ export default function TravelerProfilePage() {
                   </div>
                   <div className={styles.fieldRow}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel} htmlFor="t2dob">
-                        Date of Birth
-                        <span className={styles.tooltip}>
+                      <div className={styles.fieldLabelRow}>
+                        <label className={styles.fieldLabel} htmlFor="t2dob">Date of Birth</label>
+                        <span className={styles.tooltip} onClick={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
                           <span className={styles.tooltipIcon}>?</span>
                           <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
                         </span>
-                      </label>
+                      </div>
                       <input id="t2dob" type="date" className={getInputClassName("t2dob")} required value={values.t2dob} onChange={(e) => handleFieldChange("t2dob", e.target.value)} onBlur={() => handleBlur("t2dob")} />
                       {fieldErrors.t2dob && <span className={styles.fieldErrorMsg}>{fieldErrors.t2dob}</span>}
                     </div>
