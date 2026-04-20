@@ -65,6 +65,13 @@ export default function RootLayout({
       className={`${inter.variable} ${orangeLemonade.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+        <script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
+          async
+          defer
+        />
+      )}
     </html>
   );
 }

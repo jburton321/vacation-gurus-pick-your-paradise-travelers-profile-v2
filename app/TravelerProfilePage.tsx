@@ -4,7 +4,22 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
 
-type FieldKey = "t1fn" | "t1ln" | "t1dob" | "t2fn" | "t2ln" | "t2dob";
+type FieldKey =
+  | "t1fn"
+  | "t1ln"
+  | "t1dob"
+  | "t1addr"
+  | "t1city"
+  | "t1state"
+  | "t1zip"
+  | "t2fn"
+  | "t2ln"
+  | "t2dob"
+  | "t2addr"
+  | "t2city"
+  | "t2state"
+  | "t2zip"
+  | "relationship";
 
 type FormValues = Record<FieldKey, string>;
 
@@ -12,10 +27,34 @@ const initialValues: FormValues = {
   t1fn: "",
   t1ln: "",
   t1dob: "",
+  t1addr: "",
+  t1city: "",
+  t1state: "",
+  t1zip: "",
   t2fn: "",
   t2ln: "",
   t2dob: "",
+  t2addr: "",
+  t2city: "",
+  t2state: "",
+  t2zip: "",
+  relationship: "",
 };
+
+const relationshipOptions = [
+  "Legally Married Spouse",
+  "Cohabitating Partner",
+  "Friend",
+  "Family Member",
+];
+
+const usStates = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL",
+  "GA","HI","ID","IL","IN","IA","KS","KY","LA","ME",
+  "MD","MA","MI","MN","MS","MO","MT","NE","NV","NH",
+  "NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI",
+  "SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
+];
 
 const gallerySlides = Array.from({ length: 10 }, (_, index) => ({
   src: `/images/gallery/thumb${index + 1}.png`,
@@ -32,16 +71,86 @@ const bgImagesMobile = Array.from(
   (_, index) => `/images/gallery/mobile${index + 1}.png`
 );
 
+declare global {
+  interface Window {
+    google?: {
+      maps: {
+        places: {
+          Autocomplete: new (
+            input: HTMLInputElement,
+            opts?: Record<string, unknown>
+          ) => {
+            addListener: (event: string, cb: () => void) => void;
+            getPlace: () => {
+              address_components?: Array<{
+                long_name: string;
+                short_name: string;
+                types: string[];
+              }>;
+            };
+          };
+        };
+      };
+    };
+  }
+}
+
 export default function TravelerProfilePage() {
   const [values, setValues] = useState<FormValues>(initialValues);
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorFields, setErrorFields] = useState<FieldKey[]>([]);
-  const [hasTcpaConsent, setHasTcpaConsent] = useState(false);
-  const [showTcpaError, setShowTcpaError] = useState(false);
   const [activeBgIndex, setActiveBgIndex] = useState(0);
   const formPanelRef = useRef<HTMLDivElement>(null);
   const galleryTrackRef = useRef<HTMLDivElement>(null);
+  const t1addrRef = useRef<HTMLInputElement>(null);
+  const t2addrRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const initAutocomplete = (
+      inputRef: React.RefObject<HTMLInputElement | null>,
+      prefix: "t1" | "t2"
+    ) => {
+      if (!inputRef.current || !window.google?.maps?.places) return;
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+        componentRestrictions: { country: "us" },
+        fields: ["address_components"],
+        types: ["address"],
+      });
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        if (!place.address_components) return;
+        let street = "";
+        let city = "";
+        let state = "";
+        let zip = "";
+        for (const c of place.address_components) {
+          const t = c.types[0];
+          if (t === "street_number") street = c.long_name;
+          else if (t === "route") street += (street ? " " : "") + c.long_name;
+          else if (t === "locality") city = c.long_name;
+          else if (t === "administrative_area_level_1") state = c.short_name;
+          else if (t === "postal_code") zip = c.long_name;
+        }
+        setValues((cur) => ({
+          ...cur,
+          [`${prefix}addr`]: street,
+          [`${prefix}city`]: city,
+          [`${prefix}state`]: state,
+          [`${prefix}zip`]: zip,
+        } as FormValues));
+      });
+    };
+
+    const timer = setInterval(() => {
+      if (window.google?.maps?.places) {
+        clearInterval(timer);
+        initAutocomplete(t1addrRef, "t1");
+        initAutocomplete(t2addrRef, "t2");
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const track = galleryTrackRef.current;
@@ -122,48 +231,87 @@ export default function TravelerProfilePage() {
     };
   }, []);
 
-  const validateFields = (ids: FieldKey[]) => {
-    const invalid = ids.filter((id) => !values[id].trim());
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [touched, setTouched] = useState<Set<FieldKey>>(new Set());
 
-    if (!invalid.length) {
-      return true;
+  const validateField = (key: FieldKey, val: string): string | null => {
+    const v = val.trim();
+    if (!v) return "Required";
+
+    if (key === "t1dob" || key === "t2dob") {
+      const d = new Date(`${v}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return "Invalid date";
+      const now = new Date();
+      if (d > now) return "Date cannot be in the future";
+      const age = now.getFullYear() - d.getFullYear();
+      if (age > 120) return "Please enter a valid date";
+      if (age < 18) return "Must be 18 or older";
     }
 
-    setErrorFields((current) => [...new Set([...current, ...invalid])]);
+    if (key === "t1zip" || key === "t2zip") {
+      if (!/^\d{5}(-\d{4})?$/.test(v)) return "Enter a valid ZIP (e.g. 33301)";
+    }
 
-    window.setTimeout(() => {
-      setErrorFields((current) => current.filter((id) => !invalid.includes(id)));
-    }, 2000);
+    if (key === "t1fn" || key === "t1ln" || key === "t2fn" || key === "t2ln") {
+      if (v.length < 2) return "Must be at least 2 characters";
+      if (/\d/.test(v)) return "Name cannot contain numbers";
+    }
 
-    return false;
+    if (key === "t1city" || key === "t2city") {
+      if (v.length < 2) return "Must be at least 2 characters";
+    }
+
+    return null;
+  };
+
+  const handleBlur = (key: FieldKey) => {
+    setTouched((prev) => new Set(prev).add(key));
+    const error = validateField(key, values[key]);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (error) next[key] = error;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  const handleFieldChange = (key: FieldKey, val: string) => {
+    setValues((cur) => ({ ...cur, [key]: val }));
+    if (touched.has(key)) {
+      const error = validateField(key, val);
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        if (error) next[key] = error;
+        else delete next[key];
+        return next;
+      });
+    }
   };
 
   const scrollPanelToTop = () => {
     formPanelRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  const goToStep2 = () => {
-    if (!validateFields(["t1fn", "t1ln", "t1dob"])) {
-      return;
-    }
-
-    setCurrentStep(2);
-    scrollPanelToTop();
-  };
-
-  const goToStep1 = () => {
-    setCurrentStep(1);
-    scrollPanelToTop();
-  };
-
   const handleSubmit = () => {
-    if (!validateFields(["t2fn", "t2ln", "t2dob"])) {
-      return;
-    }
+    const allRequired: FieldKey[] = [
+      "t1fn", "t1ln", "t1dob", "t1addr", "t1city", "t1state", "t1zip",
+      "t2fn", "t2ln", "t2dob", "t2addr", "t2city", "t2state", "t2zip",
+      "relationship",
+    ];
 
-    if (!hasTcpaConsent) {
-      setShowTcpaError(true);
-      window.setTimeout(() => setShowTcpaError(false), 2000);
+    const allTouched = new Set<FieldKey>(allRequired);
+    setTouched(allTouched);
+
+    const errors: Partial<Record<FieldKey, string>> = {};
+    for (const key of allRequired) {
+      const err = validateField(key, values[key]);
+      if (err) errors[key] = err;
+    }
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setErrorFields(Object.keys(errors) as FieldKey[]);
+      window.setTimeout(() => setErrorFields([]), 2000);
       return;
     }
 
@@ -172,7 +320,9 @@ export default function TravelerProfilePage() {
   };
 
   const getInputClassName = (field: FieldKey) =>
-    `${styles.fieldInput} ${errorFields.includes(field) ? styles.fieldInputError : ""}`;
+    `${styles.fieldInput} ${
+      errorFields.includes(field) || fieldErrors[field] ? styles.fieldInputError : ""
+    }`;
 
   const formatDate = (value: string) => {
     if (!value) {
@@ -228,7 +378,7 @@ export default function TravelerProfilePage() {
         <div className={styles.heroPanel}>
           <div className={styles.heroLogo}>
             <Image
-              src="/images/brand/primary-logo-full-color.svg"
+              src="/images/brand/primary-logo-full-color.png"
               alt="Vacation Gurus"
               width={220}
               height={72}
@@ -236,9 +386,9 @@ export default function TravelerProfilePage() {
             />
           </div>
 
-          <h1 className={styles.heroHeadline}>Pick Your Paradise</h1>
+          <h1 className={styles.heroHeadline}>Fill Out Your Traveler Profile Today</h1>
           <p className={styles.heroSubheadline}>
-            You&apos;re In. Now Claim Your Bonus Cruise.
+            And Claim Your Bonus 4-Day Cruise
           </p>
           <p className={styles.heroSub}>
             Complete your traveler profile below and we&apos;ll add a
@@ -279,262 +429,157 @@ export default function TravelerProfilePage() {
           <div className={styles.formContainer}>
             {!showSuccess ? (
               <div>
-                <h2 className={styles.formTitle}>Tell Us About Your Travelers</h2>
-                <p className={styles.formSubtitle}>
-                  Your paradise is waiting. Before we get you there, we need a
-                  few details to personalize your experience and lock in your
-                  bonus cruise.
+                <h2 className={styles.formHeadline}>
+                  Please fill in your Name, Address &amp; DOB exactly as it
+                  appears on your drivers license.
+                </h2>
+
+                <p className={styles.formSubtext}>
+                  To finalize your reservation, you must complete your Traveler
+                  Profile as the next step. Reservations cannot be booked with
+                  the resort until this step is complete. Complete today and you
+                  will get a BONUS 4-day Caribbean cruise!
                 </p>
 
-                <div
-                  className={`${styles.stepIndicator} ${
-                    currentStep === 2 ? styles.stepIndicatorStep2 : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className={`${styles.stepToggleOption} ${
-                      currentStep === 1 ? styles.stepToggleOptionActive : ""
-                    }`}
-                    onClick={goToStep1}
-                  >
-                    Traveler 1
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.stepToggleOption} ${
-                      currentStep === 2 ? styles.stepToggleOptionActive : ""
-                    }`}
-                    onClick={goToStep2}
-                  >
-                    Traveler 2
-                  </button>
-                </div>
-
-                {currentStep === 1 ? (
-                  <div>
-                    <div className={styles.travelerSection}>
-                      <div className={styles.travelerLabel}>Traveler 1</div>
-                      <div className={styles.fieldRow}>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t1fn">
-                            First Name
-                          </label>
-                          <input
-                            id="t1fn"
-                            type="text"
-                            className={getInputClassName("t1fn")}
-                            placeholder="First name"
-                            required
-                            value={values.t1fn}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t1fn: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t1ln">
-                            Last Name
-                          </label>
-                          <input
-                            id="t1ln"
-                            type="text"
-                            className={getInputClassName("t1ln")}
-                            placeholder="Last name"
-                            required
-                            value={values.t1ln}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t1ln: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className={styles.dobRow}>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t1dob">
-                            Date of Birth
-                          </label>
-                          <input
-                            id="t1dob"
-                            type="date"
-                            className={getInputClassName("t1dob")}
-                            required
-                            value={values.t1dob}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t1dob: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
+                <div className={styles.travelerSection}>
+                  <div className={styles.travelerLabel}>Traveler 1</div>
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1fn">First Name</label>
+                      <input id="t1fn" type="text" className={getInputClassName("t1fn")} placeholder="First name" required value={values.t1fn} onChange={(e) => handleFieldChange("t1fn", e.target.value)} onBlur={() => handleBlur("t1fn")} />
+                      {fieldErrors.t1fn && <span className={styles.fieldErrorMsg}>{fieldErrors.t1fn}</span>}
                     </div>
-
-                    <button
-                      type="button"
-                      className={styles.submitBtn}
-                      onClick={goToStep2}
-                    >
-                      Continue to Traveler 2
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </button>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1ln">Last Name</label>
+                      <input id="t1ln" type="text" className={getInputClassName("t1ln")} placeholder="Last name" required value={values.t1ln} onChange={(e) => handleFieldChange("t1ln", e.target.value)} onBlur={() => handleBlur("t1ln")} />
+                      {fieldErrors.t1ln && <span className={styles.fieldErrorMsg}>{fieldErrors.t1ln}</span>}
+                    </div>
                   </div>
-                ) : (
-                  <div>
-                    <div className={styles.travelerSection}>
-                      <div className={styles.travelerLabel}>Traveler 2</div>
-                      <div className={styles.fieldRow}>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t2fn">
-                            First Name
-                          </label>
-                          <input
-                            id="t2fn"
-                            type="text"
-                            className={getInputClassName("t2fn")}
-                            placeholder="First name"
-                            required
-                            value={values.t2fn}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t2fn: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t2ln">
-                            Last Name
-                          </label>
-                          <input
-                            id="t2ln"
-                            type="text"
-                            className={getInputClassName("t2ln")}
-                            placeholder="Last name"
-                            required
-                            value={values.t2ln}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t2ln: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className={styles.dobRow}>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel} htmlFor="t2dob">
-                            Date of Birth
-                          </label>
-                          <input
-                            id="t2dob"
-                            type="date"
-                            className={getInputClassName("t2dob")}
-                            required
-                            value={values.t2dob}
-                            onChange={(event) =>
-                              setValues((current) => ({
-                                ...current,
-                                t2dob: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`${styles.tcpaConsent} ${
-                        showTcpaError ? styles.tcpaConsentError : ""
-                      }`}
-                    >
-                      <label className={styles.tcpaConsentLabel} htmlFor="tcpaConsent">
-                        <input
-                          id="tcpaConsent"
-                          type="checkbox"
-                          className={styles.tcpaCheckbox}
-                          checked={hasTcpaConsent}
-                          onChange={(event) => {
-                            setHasTcpaConsent(event.target.checked);
-                            if (event.target.checked) {
-                              setShowTcpaError(false);
-                            }
-                          }}
-                        />
-                        <span className={styles.tcpaConsentCopy}>
-                          <strong>CONDITIONS:</strong> By clicking
-                          {" "}
-                          &ldquo;Accept &amp; Continue&rdquo;
-                          {" "}
-                          below, I consent and agree to the
-                          {" "}
-                          <a href="#">Terms &amp; Conditions</a>,
-                          {" "}
-                          <a href="#">Privacy Policy</a>,
-                          {" "}
-                          <a href="#">Mandatory Arbitration and Class Action Waiver</a>,
-                          {" "}
-                          all of which I have read and understand. I further give
-                          my express written consent to receive promotional emails,
-                          SMS/MMS/RCS texts and calls made from an automatic
-                          telephone dialing system (for selection or dialing) and
-                          those using prerecorded, artificial, or AI-generated
-                          voice, whether delivered by live call or text message or
-                          directly to voicemail from or on behalf of Sunstate Client
-                          Services Inc. dba VacationGurus or Club Exploria, LLC dba
-                          Exploria Resorts, Express Consent, LLC. at the
-                          address/numbers provided regardless of that number being
-                          on any Do not Call Registry. I understand text/data and
-                          other charges may apply. My consent is not a condition of
-                          any purchase. As an alternative to the consent above you
-                          may enter the Promotion
-                          {" "}
-                          <a href="#">here</a>.
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1dob">
+                        Date of Birth
+                        <span className={styles.tooltip}>
+                          <span className={styles.tooltipIcon}>?</span>
+                          <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
                         </span>
                       </label>
+                      <input id="t1dob" type="date" className={getInputClassName("t1dob")} required value={values.t1dob} onChange={(e) => handleFieldChange("t1dob", e.target.value)} onBlur={() => handleBlur("t1dob")} />
+                      {fieldErrors.t1dob && <span className={styles.fieldErrorMsg}>{fieldErrors.t1dob}</span>}
                     </div>
-
-                    <button
-                      type="button"
-                      className={styles.submitBtn}
-                      onClick={handleSubmit}
-                    >
-                      Accept &amp; Continue
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </button>
                   </div>
-                )}
-
-                <div className={styles.reassurance}>
-                  Your cruise certificate will be delivered to your email and
-                  phone upon submission. Redemption through GOCRV at
-                  954-525-1777, Mon–Fri 9:30am–5pm ET. Same land and sea
-                  redemption terms apply.
+                  <div className={styles.fieldFullRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1addr">Street Address</label>
+                      <input ref={t1addrRef} id="t1addr" type="text" className={getInputClassName("t1addr")} placeholder="Street address" required autoComplete="off" value={values.t1addr} onChange={(e) => handleFieldChange("t1addr", e.target.value)} onBlur={() => handleBlur("t1addr")} />
+                      <p className={styles.fieldHint}>Must match your Drivers License — used to verify your reservation at check-in.</p>
+                      {fieldErrors.t1addr && <span className={styles.fieldErrorMsg}>{fieldErrors.t1addr}</span>}
+                    </div>
+                  </div>
+                  <div className={styles.fieldRowThree}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1city">City</label>
+                      <input id="t1city" type="text" className={getInputClassName("t1city")} placeholder="City" required value={values.t1city} onChange={(e) => handleFieldChange("t1city", e.target.value)} onBlur={() => handleBlur("t1city")} />
+                      {fieldErrors.t1city && <span className={styles.fieldErrorMsg}>{fieldErrors.t1city}</span>}
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1state">State</label>
+                      <select id="t1state" className={getInputClassName("t1state")} required value={values.t1state} onChange={(e) => handleFieldChange("t1state", e.target.value)} onBlur={() => handleBlur("t1state")}>
+                        <option value="">State</option>
+                        {usStates.map((s) => (<option key={s} value={s}>{s}</option>))}
+                      </select>
+                      {fieldErrors.t1state && <span className={styles.fieldErrorMsg}>{fieldErrors.t1state}</span>}
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t1zip">ZIP Code</label>
+                      <input id="t1zip" type="text" className={getInputClassName("t1zip")} placeholder="ZIP" required inputMode="numeric" maxLength={10} value={values.t1zip} onChange={(e) => handleFieldChange("t1zip", e.target.value)} onBlur={() => handleBlur("t1zip")} />
+                      {fieldErrors.t1zip && <span className={styles.fieldErrorMsg}>{fieldErrors.t1zip}</span>}
+                    </div>
+                  </div>
                 </div>
 
-                <div className={styles.legal}>
-                  Cruise certificate is a complimentary 3 or 4-night Caribbean
-                  Cruise for two adults. Certificate is issued via email and
-                  text upon completion of your stay and attendance at the
-                  required sales presentation in its entirety. Valid for 12
-                  months from original purchase date. Reservations must be made
-                  through GOCRV at 954-525-1777 (Mon–Fri 9:30am–5pm ET) once a
-                  certificate has been received and registered. One certificate
-                  per confirmed booking. See certificate for complete terms and
-                  conditions.
+                <div className={styles.travelerSection}>
+                  <div className={styles.travelerLabel}>Traveler 2</div>
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="relationship">Relationship to Your Second Traveler</label>
+                      <select id="relationship" className={getInputClassName("relationship")} required value={values.relationship} onChange={(e) => handleFieldChange("relationship", e.target.value)} onBlur={() => handleBlur("relationship")}>
+                        <option value="">Select relationship</option>
+                        {relationshipOptions.map((opt) => (<option key={opt} value={opt}>{opt}</option>))}
+                      </select>
+                      {fieldErrors.relationship && <span className={styles.fieldErrorMsg}>{fieldErrors.relationship}</span>}
+                    </div>
+                  </div>
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2fn">First Name</label>
+                      <input id="t2fn" type="text" className={getInputClassName("t2fn")} placeholder="First name" required value={values.t2fn} onChange={(e) => handleFieldChange("t2fn", e.target.value)} onBlur={() => handleBlur("t2fn")} />
+                      {fieldErrors.t2fn && <span className={styles.fieldErrorMsg}>{fieldErrors.t2fn}</span>}
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2ln">Last Name</label>
+                      <input id="t2ln" type="text" className={getInputClassName("t2ln")} placeholder="Last name" required value={values.t2ln} onChange={(e) => handleFieldChange("t2ln", e.target.value)} onBlur={() => handleBlur("t2ln")} />
+                      {fieldErrors.t2ln && <span className={styles.fieldErrorMsg}>{fieldErrors.t2ln}</span>}
+                    </div>
+                  </div>
+                  <div className={styles.fieldRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2dob">
+                        Date of Birth
+                        <span className={styles.tooltip}>
+                          <span className={styles.tooltipIcon}>?</span>
+                          <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
+                        </span>
+                      </label>
+                      <input id="t2dob" type="date" className={getInputClassName("t2dob")} required value={values.t2dob} onChange={(e) => handleFieldChange("t2dob", e.target.value)} onBlur={() => handleBlur("t2dob")} />
+                      {fieldErrors.t2dob && <span className={styles.fieldErrorMsg}>{fieldErrors.t2dob}</span>}
+                    </div>
+                  </div>
+                  <div className={styles.fieldFullRow}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2addr">Street Address</label>
+                      <input ref={t2addrRef} id="t2addr" type="text" className={getInputClassName("t2addr")} placeholder="Street address" required autoComplete="off" value={values.t2addr} onChange={(e) => handleFieldChange("t2addr", e.target.value)} onBlur={() => handleBlur("t2addr")} />
+                      <p className={styles.fieldHint}>Must match your Drivers License — used to verify your reservation at check-in.</p>
+                      {fieldErrors.t2addr && <span className={styles.fieldErrorMsg}>{fieldErrors.t2addr}</span>}
+                    </div>
+                  </div>
+                  <div className={styles.fieldRowThree}>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2city">City</label>
+                      <input id="t2city" type="text" className={getInputClassName("t2city")} placeholder="City" required value={values.t2city} onChange={(e) => handleFieldChange("t2city", e.target.value)} onBlur={() => handleBlur("t2city")} />
+                      {fieldErrors.t2city && <span className={styles.fieldErrorMsg}>{fieldErrors.t2city}</span>}
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2state">State</label>
+                      <select id="t2state" className={getInputClassName("t2state")} required value={values.t2state} onChange={(e) => handleFieldChange("t2state", e.target.value)} onBlur={() => handleBlur("t2state")}>
+                        <option value="">State</option>
+                        {usStates.map((s) => (<option key={s} value={s}>{s}</option>))}
+                      </select>
+                      {fieldErrors.t2state && <span className={styles.fieldErrorMsg}>{fieldErrors.t2state}</span>}
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel} htmlFor="t2zip">ZIP Code</label>
+                      <input id="t2zip" type="text" className={getInputClassName("t2zip")} placeholder="ZIP" required inputMode="numeric" maxLength={10} value={values.t2zip} onChange={(e) => handleFieldChange("t2zip", e.target.value)} onBlur={() => handleBlur("t2zip")} />
+                      {fieldErrors.t2zip && <span className={styles.fieldErrorMsg}>{fieldErrors.t2zip}</span>}
+                    </div>
+                  </div>
+                </div>
+
+
+                <button
+                  type="button"
+                  className={styles.submitBtn}
+                  onClick={handleSubmit}
+                >
+                  Submit &amp; Continue
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <div className={styles.reassurance}>
+                  Your cruise certificate will be delivered to you after you
+                  complete your travel.
                 </div>
               </div>
             ) : (
@@ -555,19 +600,9 @@ export default function TravelerProfilePage() {
                     <div className={styles.confirmationEyebrow}>Traveler 1</div>
                     <div className={styles.confirmationFields}>
                       <div className={styles.confirmationFieldItem}>
-                        <span className={styles.confirmationFieldLabel}>
-                          First Name
-                        </span>
+                        <span className={styles.confirmationFieldLabel}>Name</span>
                         <span className={styles.confirmationFieldValue}>
-                          {values.t1fn || "-"}
-                        </span>
-                      </div>
-                      <div className={styles.confirmationFieldItem}>
-                        <span className={styles.confirmationFieldLabel}>
-                          Last Name
-                        </span>
-                        <span className={styles.confirmationFieldValue}>
-                          {values.t1ln || "-"}
+                          {values.t1fn} {values.t1ln}
                         </span>
                       </div>
                       <div className={styles.confirmationFieldItem}>
@@ -578,6 +613,13 @@ export default function TravelerProfilePage() {
                           {formatDate(values.t1dob)}
                         </span>
                       </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>Address</span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t1addr}, {values.t1city}, {values.t1state}{" "}
+                          {values.t1zip}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -585,19 +627,9 @@ export default function TravelerProfilePage() {
                     <div className={styles.confirmationEyebrow}>Traveler 2</div>
                     <div className={styles.confirmationFields}>
                       <div className={styles.confirmationFieldItem}>
-                        <span className={styles.confirmationFieldLabel}>
-                          First Name
-                        </span>
+                        <span className={styles.confirmationFieldLabel}>Name</span>
                         <span className={styles.confirmationFieldValue}>
-                          {values.t2fn || "-"}
-                        </span>
-                      </div>
-                      <div className={styles.confirmationFieldItem}>
-                        <span className={styles.confirmationFieldLabel}>
-                          Last Name
-                        </span>
-                        <span className={styles.confirmationFieldValue}>
-                          {values.t2ln || "-"}
+                          {values.t2fn} {values.t2ln}
                         </span>
                       </div>
                       <div className={styles.confirmationFieldItem}>
@@ -606,6 +638,21 @@ export default function TravelerProfilePage() {
                         </span>
                         <span className={styles.confirmationFieldValue}>
                           {formatDate(values.t2dob)}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>Address</span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.t2addr}, {values.t2city}, {values.t2state}{" "}
+                          {values.t2zip}
+                        </span>
+                      </div>
+                      <div className={styles.confirmationFieldItem}>
+                        <span className={styles.confirmationFieldLabel}>
+                          Relationship
+                        </span>
+                        <span className={styles.confirmationFieldValue}>
+                          {values.relationship}
                         </span>
                       </div>
                     </div>
@@ -653,7 +700,11 @@ export default function TravelerProfilePage() {
                       </div>
                     </div>
                     <p className={styles.confirmationNote}>
-                      To redeem, call GOCRV at 954-525-1777, Mon-Fri 9:30am-5pm
+                      To redeem, call GOCRV at{" "}
+                      <a href="tel:+19545251777" className={styles.phoneLink}>
+                        <strong>954-525-1777</strong>
+                      </a>
+                      , Mon-Fri 9:30am-5pm
                       ET. Your certificate will also be delivered to your email
                       and phone.
                     </p>
@@ -666,7 +717,11 @@ export default function TravelerProfilePage() {
                   text upon completion of your stay and attendance at the
                   required sales presentation in its entirety. Valid for 12
                   months from original purchase date. Reservations must be made
-                  through GOCRV at 954-525-1777 (Mon–Fri 9:30am–5pm ET) once a
+                  through GOCRV at{" "}
+                  <a href="tel:+19545251777" className={styles.phoneLink}>
+                    <strong>954-525-1777</strong>
+                  </a>{" "}
+                  (Mon–Fri 9:30am–5pm ET) once a
                   certificate has been received and registered. One certificate
                   per confirmed booking. See certificate for complete terms and
                   conditions.
@@ -677,21 +732,50 @@ export default function TravelerProfilePage() {
         </div>
       </div>
       <footer className={styles.siteFooter}>
-        <div className={styles.siteFooterBrand}>
-          <Image
-            src="/images/brand/primary-logo-full-color.svg"
-            alt="Vacation Gurus"
-            width={132}
-            height={44}
-          />
+        <div className={styles.siteFooterInner}>
+          <div className={styles.siteFooterBrand}>
+            <Image
+              src="/images/brand/vacationvip-logo.png"
+              alt="VacationVIP.com"
+              width={220}
+              height={50}
+              className={styles.vvipLogoImg}
+            />
+          </div>
+
+          <p className={styles.siteFooterDisclaimer}>
+            Price does not include hotel taxes which vary and are payable upon
+            check-in.
+          </p>
+
+          <div className={styles.siteFooterBbb}>
+            <Image
+              src="/images/brand/bbb-badge.png"
+              alt="BBB Accredited Business – BBB Rating A-"
+              width={180}
+              height={40}
+              className={styles.bbbBadgeImg}
+            />
+          </div>
+
+          <p className={styles.siteFooterEntity}>
+            Vacation Packages are promoted by Vacation VIP and fulfilled by
+            Sunstate Client Services DBA: Vacation Gurus, LLC.
+          </p>
+
+          <p className={styles.siteFooterSot}>SOT: Florida: ST44476</p>
+
+          <div className={styles.siteFooterLinks}>
+            <a href="#">Terms and Conditions</a>
+            <span className={styles.siteFooterDivider}>|</span>
+            <a href="#">Privacy Policy</a>
+          </div>
+
+          <p className={styles.siteFooterCopy}>
+            <a href="https://vacationvip.com">Vacationvip.com</a>
+            {"  |  "}Copyright © 2026{"  |  "}All Rights Reserved.
+          </p>
         </div>
-        <span className={styles.siteFooterCopy}>
-          2025 © Vacation Gurus · FL SOT 44476
-        </span>
-        <span className={styles.siteFooterLinks}>
-          <a href="#">Terms of Service</a> &nbsp;·&nbsp;{" "}
-          <a href="#">Privacy Policy</a>
-        </span>
       </footer>
     </main>
   );
