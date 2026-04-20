@@ -390,10 +390,6 @@ export default function TravelerProfilePage() {
           <p className={styles.heroSubheadline}>
             And Claim Your Bonus 4-Day Cruise
           </p>
-          <p className={styles.heroSub}>
-            Complete your traveler profile below and we&apos;ll add a
-            complimentary cruise certificate to your package — on us.
-          </p>
           <div className={styles.heroGallery} aria-label="Destination gallery">
             <div className={styles.heroGalleryTrack} ref={galleryTrackRef}>
               {[...gallerySlides, ...gallerySlides, ...gallerySlides].map(
