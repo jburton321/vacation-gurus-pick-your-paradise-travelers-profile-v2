@@ -457,7 +457,7 @@ export default function TravelerProfilePage() {
                         <label className={styles.fieldLabel} htmlFor="t1dob">Date of Birth</label>
                         <span className={styles.tooltip} onClick={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
                           <span className={styles.tooltipIcon}>?</span>
-                          <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
+                          <span className={styles.tooltipContent}>Cruise lines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
                         </span>
                       </div>
                       <input id="t1dob" type="date" className={getInputClassName("t1dob")} required value={values.t1dob} onChange={(e) => handleFieldChange("t1dob", e.target.value)} onBlur={() => handleBlur("t1dob")} />
@@ -524,7 +524,7 @@ export default function TravelerProfilePage() {
                         <label className={styles.fieldLabel} htmlFor="t2dob">Date of Birth</label>
                         <span className={styles.tooltip} onClick={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
                           <span className={styles.tooltipIcon}>?</span>
-                          <span className={styles.tooltipContent}>Cruiselines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
+                          <span className={styles.tooltipContent}>Cruise lines require this information to help with your bookings. This allows them to distribute your cruise certificate faster and more efficiently.</span>
                         </span>
                       </div>
                       <input id="t2dob" type="date" className={getInputClassName("t2dob")} required value={values.t2dob} onChange={(e) => handleFieldChange("t2dob", e.target.value)} onBlur={() => handleBlur("t2dob")} />
@@ -587,8 +587,7 @@ export default function TravelerProfilePage() {
                 </div>
                 <h2 className={styles.successTitle}>You&apos;re All Set!</h2>
                 <p className={styles.successSub}>
-                  Your traveler profile has been submitted. Here&apos;s your
-                  bonus cruise certificate.
+                  Your traveler profile has been submitted.
                 </p>
 
                 <div className={styles.confirmationGrid}>
@@ -695,33 +694,9 @@ export default function TravelerProfilePage() {
                         </span>
                       </div>
                     </div>
-                    <p className={styles.confirmationNote}>
-                      To redeem, call GOCRV at{" "}
-                      <a href="tel:+19545251777" className={styles.phoneLink}>
-                        <strong>954-525-1777</strong>
-                      </a>
-                      , Mon-Fri 9:30am-5pm
-                      ET. Your certificate will also be delivered to your email
-                      and phone.
-                    </p>
                   </div>
                 </div>
 
-                <div className={styles.successLegal}>
-                  Cruise certificate is a complimentary 3 or 4-night Caribbean
-                  Cruise for two adults. Certificate is issued via email and
-                  text upon completion of your stay and attendance at the
-                  required sales presentation in its entirety. Valid for 12
-                  months from original purchase date. Reservations must be made
-                  through GOCRV at{" "}
-                  <a href="tel:+19545251777" className={styles.phoneLink}>
-                    <strong>954-525-1777</strong>
-                  </a>{" "}
-                  (Mon–Fri 9:30am–5pm ET) once a
-                  certificate has been received and registered. One certificate
-                  per confirmed booking. See certificate for complete terms and
-                  conditions.
-                </div>
               </div>
             )}
           </div>
@@ -731,11 +706,11 @@ export default function TravelerProfilePage() {
         <div className={styles.siteFooterInner}>
           <div className={styles.siteFooterBrand}>
             <Image
-              src="/images/brand/vacationvip-logo.png"
-              alt="VacationVIP.com"
-              width={220}
-              height={50}
-              className={styles.vvipLogoImg}
+              src="/images/brand/primary-logo-full-color.png"
+              alt="Vacation Gurus"
+              width={160}
+              height={52}
+              className={styles.footerLogoImg}
             />
           </div>
 
